@@ -103,6 +103,9 @@ func measureUploadSpeed(serverURL string) (float64, error) {
 	}
 	defer resp.Body.Close()
 
+	// Read response body to complete the request
+	io.Copy(io.Discard, resp.Body)
+
 	// Calculate duration and speed
 	duration := time.Since(startTime)
 	speedMbps := (float64(dataSize) * 8) / duration.Seconds() / 1000000 // Convert to Mbps
@@ -126,7 +129,6 @@ func measureDownloadSpeedParallel(serverURL string, connections int) (float64, e
 	go printProgress(fmt.Sprintf("  Downloading with %d parallel connections...", connections), done)
 
 	var wg sync.WaitGroup
-	speedChan := make(chan float64, connections)
 	errorChan := make(chan error, connections)
 
 	// Start timer
@@ -167,7 +169,6 @@ func measureDownloadSpeedParallel(serverURL string, connections int) (float64, e
 
 	// Wait for all goroutines to complete
 	wg.Wait()
-	close(speedChan)
 	close(errorChan)
 
 	// Check for errors
@@ -219,6 +220,9 @@ func measureUploadSpeedParallel(serverURL string, connections int) (float64, err
 				return
 			}
 			defer resp.Body.Close()
+
+			// Read response body to complete the request
+			io.Copy(io.Discard, resp.Body)
 		}(i)
 	}
 
@@ -260,6 +264,8 @@ func main() {
 		close(done)
 		log.Fatalf("\n✗ Failed to connect to server: %v", err)
 	}
+	// Read and discard response body
+	io.Copy(io.Discard, resp.Body)
 	resp.Body.Close()
 	close(done)
 	time.Sleep(100 * time.Millisecond)
